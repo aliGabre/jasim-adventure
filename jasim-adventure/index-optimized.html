@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no" />
+    <title>مغامرات جاسم - نسخة محسنة الأداء</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0 }
+        body {
+            background: #5C94FC;
+            font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        h1 { margin: 10px 0 8px; text-shadow: 3px 3px 0 #000; font-weight: 900; }
+        .sub { opacity: .9; margin-bottom: 8px }
+        .game-wrap {
+            position: relative;
+            width: 95vw;
+            max-width: 1000px;
+            aspect-ratio: 16/9;
+            border: 4px solid #8B4513;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #63adff;
+            box-shadow: 0 12px 24px rgba(0, 0, 0, .35);
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            image-rendering: pixelated;
+            background: linear-gradient(#76b8ff, #8cd1ff 55%, #63adff);
+        }
+        .hud {
+            position: absolute;
+            inset: 10px 10px auto 10px;
+            display: flex;
+            gap: 10px;
+            justify-content: space-between;
+            pointer-events: none;
+            font-weight: 800;
+            text-shadow: 1px 1px 2px #000;
+        }
+        .hud .left, .hud .right { display: flex; gap: 14px }
+        .badge {
+            background: rgba(0, 0, 0, .45);
+            padding: 6px 10px;
+            border-radius: 8px;
+            font-size: 16px
+        }
+        .msg {
+            position: absolute;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 14px;
+            background: rgba(0, 0, 0, .4);
+            text-align: center;
+            font-size: 32px;
+            font-weight: 900;
+            text-shadow: 3px 3px 0 #000;
+            padding: 20px;
+        }
+        .msg small { font-size: 16px; opacity: .9 }
+        .mobile {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 18px;
+            z-index: 5;
+            gap: 10px;
+            opacity: .92;
+        }
+        .pad { display: flex; gap: 10px }
+        .btn {
+            width: 64px;
+            height: 64px;
+            border: none;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, .55);
+            color: #222;
+            font-size: 22px;
+            font-weight: 800;
+            box-shadow: 0 4px 0 rgba(0, 0, 0, .2);
+        }
+        .btn.jump { background: rgba(255, 90, 90, .8); color: #fff }
+        .btn.fire { background: rgba(255, 200, 0, .9); color: #7a3 }
+        .btn.down { background: rgba(180, 255, 180, .9); color: #063 }
+        @media(min-width:900px) { .mobile { display: none } }
+        .sharebar { margin: 8px 0 0; display: flex; gap: 8px; align-items: center; }
+        .sharebtn {
+            border: none;
+            background: #ffe08a;
+            color: #5b3f00;
+            font-weight: 800;
+            padding: 8px 12px;
+            border-radius: 8px;
+            box-shadow: 0 3px 0 rgba(0, 0, 0, .2);
+            cursor: pointer;
+        }
+        .overlay {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, .5);
+            z-index: 9999;
+            padding: 20px;
+        }
+        .card {
+            background: #fff;
+            color: #222;
+            max-width: 92vw;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 12px 24px rgba(0, 0, 0, .35);
+        }
+        .card h3 { margin-bottom: 8px }
+        .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap }
+        .urlbox { width: 320px; max-width: 80vw; padding: 6px 8px; border: 1px solid #ccc; border-radius: 6px }
+        .qr { width: 260px; height: 260px; border: 1px solid #ddd }
+        .close { margin-top: 10px; background: #444; color: #fff }
+        .perf-info {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🍄 مغامرات جاسم 🍄</h1>
+    <div class="sub">نسخة محسنة الأداء - تحسينات في السرعة والحجم</div>
+
+    <div class="sharebar">
+        <button id="shareOpen" class="sharebtn">🔗 مشاركة / QR</button>
+    </div>
+
+    <div class="game-wrap">
+        <canvas id="game"></canvas>
+        <div class="hud">
+            <div class="left">
+                <div class="badge">النقاط: <span id="score">0</span></div>
+                <div class="badge">الأرواح: <span id="lives">3</span></div>
+            </div>
+            <div class="right">
+                <div class="badge">المستوى: <span id="level">1</span></div>
+            </div>
+        </div>
+        <div id="msg" class="msg"></div>
+    </div>
+
+    <div class="mobile">
+        <div class="pad">
+            <button class="btn" id="left">◀</button>
+            <button class="btn down" id="down">▼</button>
+            <button class="btn" id="right">▶</button>
+        </div>
+        <div class="pad">
+            <button class="btn jump" id="jump">⤒</button>
+            <button class="btn fire" id="fire">✶</button>
+        </div>
+    </div>
+
+    <div id="overlay" class="overlay">
+        <div class="card">
+            <h3>مشاركة اللعبة</h3>
+            <div class="row" style="margin-bottom:8px">
+                <input id="pageUrl" class="urlbox" readonly />
+                <button id="copyLink" class="sharebtn">نسخ الرابط</button>
+                <button id="nativeShare" class="sharebtn">مشاركة</button>
+            </div>
+            <div class="row">
+                <img id="qrImg" class="qr" alt="QR" />
+                <div style="max-width:320px; font-size:14px; line-height:1.5">
+                    ملاحظة: يعمل QR عند استضافة الملف على الإنترنت
+                </div>
+            </div>
+            <button id="closeOverlay" class="sharebtn close">إغلاق</button>
+        </div>
+    </div>
+
+    <div class="perf-info" id="perfInfo">
+        FPS: 60<br>
+        Objects: 0<br>
+        Memory: 0KB
+    </div>
+
+    <!-- تحميل الملفات المحسنة -->
+    <script src="js/spatial-hash.js"></script>
+    <script src="js/object-pool.js"></script>
+    <script src="js/sound-manager.js"></script>
+    <script src="js/performance-monitor.js"></script>
+    <script src="js/game-levels.js"></script>
+    <script src="js/game-renderer.js"></script>
+    <script src="js/game-main.js"></script>
+</body>
+</html>
