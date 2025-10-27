@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>سوبر جاسم - نسخة مبسطة</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: linear-gradient(135deg, #87CEEB 0%, #98FB98 100%);
+            font-family: Arial, sans-serif;
+            color: white;
+            text-align: center;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        h1 { 
+            font-size: 2.5em; 
+            margin-bottom: 20px;
+            text-shadow: 3px 3px 0 #000;
+            background: linear-gradient(45deg, #FFD700, #FFA500);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .game-container {
+            border: 4px solid #8B4513;
+            border-radius: 15px;
+            background: #63adff;
+            margin: 20px auto;
+            max-width: 800px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        canvas {
+            display: block;
+            background: linear-gradient(#76b8ff, #8cd1ff);
+            width: 100%;
+            height: 400px;
+        }
+        .controls {
+            margin: 20px 0;
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(45deg, #FFD700, #FFA500);
+            color: #8B4513;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 16px;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.3);
+        }
+        .btn:active { transform: translateY(2px); box-shadow: 0 2px 0 rgba(0,0,0,0.3); }
+        .mobile-controls {
+            display: none;
+            margin: 20px 0;
+            gap: 10px;
+            justify-content: center;
+        }
+        .mobile-btn {
+            width: 60px;
+            height: 60px;
+            border: none;
+            border-radius: 50%;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 0 5px;
+        }
+        .mobile-btn.left { background: #4CAF50; color: white; }
+        .mobile-btn.right { background: #2196F3; color: white; }
+        .mobile-btn.jump { background: #FF5722; color: white; }
+        .mobile-btn.fire { background: #FF9800; color: white; }
+        .hud {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 14px;
+            color: white;
+        }
+        @media (max-width: 768px) {
+            .mobile-controls { display: flex; }
+            .controls { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <h1>🍄 سوبر جاسم 🍄</h1>
+    
+    <div class="controls">
+        <button class="btn" onclick="startGame()">▶ بدء اللعبة</button>
+        <button class="btn" onclick="pauseGame()">⏸ إيقاف مؤقت</button>
+        <button class="btn" onclick="resetGame()">🔄 إعادة تعيين</button>
+        <button class="btn" onclick="toggleFullscreen()">⛶ ملء الشاشة</button>
+    </div>
+    
+    <div class="mobile-controls">
+        <button class="mobile-btn left" onmousedown="keyDown('left')" onmouseup="keyUp('left')" ontouchstart="keyDown('left')" ontouchend="keyUp('left')">◀</button>
+        <button class="mobile-btn right" onmousedown="keyDown('right')" onmouseup="keyUp('right')" ontouchstart="keyDown('right')" ontouchend="keyUp('right')">▶</button>
+        <button class="mobile-btn jump" onmousedown="keyDown('jump')" onmouseup="keyUp('jump')" ontouchstart="keyDown('jump')" ontouchend="keyUp('jump')">⤒</button>
+        <button class="mobile-btn fire" onmousedown="keyDown('fire')" onmouseup="keyUp('fire')" ontouchstart="keyDown('fire')" ontouchend="keyUp('fire')">✶</button>
+    </div>
+    
+    <div class="game-container">
+        <canvas id="gameCanvas"></canvas>
+        <div class="hud">
+            <div>النقاط: <span id="score">0</span></div>
+            <div>الأرواح: <span id="lives">3</span></div>
+            <div>العملات: <span id="coins">0</span></div>
+        </div>
+    </div>
+    
+    <div style="margin: 20px; font-size: 18px;">
+        <strong>أزرار التحكم:</strong><br>
+        الكمبيوتر: الأسهم للحركة، Space للقفز، <strong>Ctrl للرصاص</strong><br>
+        الهاتف: أزرار اللمس أسفل اللعبة
+    </div>
+
+    <script>
+        // إعداد الكانفاس
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = 800;
+        canvas.height = 400;
+        
+        // حالة اللعبة
+        let gameState = 'menu'; // menu, playing, paused, over
+        let score = 0;
+        let lives = 3;
+        let coins = 0;
+        
+        // اللاعب
+        const player = {
+            x: 100,
+            y: 300,
+            width: 30,
+            height: 40,
+            vx: 0,
+            vy: 0,
+            onGround: false,
+            facing: 1
+        };
+        
+        // المنصات
+        const platforms = [
+            { x: 0, y: 350, width: 800, height: 50 },
+            { x: 200, y: 280, width: 100, height: 20 },
+            { x: 400, y: 220, width: 100, height: 20 },
+            { x: 600, y: 160, width: 100, height: 20 }
+        ];
+        
+        // الأعداء
+        const enemies = [
+            { x: 300, y: 320, width: 25, height: 25, vx: -1, alive: true }
+        ];
+        
+        // العملات
+        const gameCoins = [
+            { x: 250, y: 250, width: 20, height: 20, collected: false },
+            { x: 450, y: 190, width: 20, height: 20, collected: false },
+            { x: 650, y: 130, width: 20, height: 20, collected: false }
+        ];
+        
+        // الرصاصات
+        const bullets = [];
+        
+        // إدخال لوحة المفاتيح
+        const keys = {};
+        document.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+            if (e.code === 'Enter' && gameState === 'menu') startGame();
+            if (e.code === 'KeyP') pauseGame();
+            if (e.code === 'KeyR') resetGame();
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+        });
+        
+        // أزرار الهاتف
+        function keyDown(key) {
+            keys[key] = true;
+        }
+        
+        function keyUp(key) {
+            keys[key] = false;
+        }
+        
+        // دوال اللعبة
+        function startGame() {
+            gameState = 'playing';
+            console.log('🎮 بدأت اللعبة!');
+        }
+        
+        function pauseGame() {
+            if (gameState === 'playing') {
+                gameState = 'paused';
+            } else if (gameState === 'paused') {
+                gameState = 'playing';
+            }
+        }
+        
+        function resetGame() {
+            gameState = 'menu';
+            score = 0;
+            lives = 3;
+            coins = 0;
+            player.x = 100;
+            player.y = 300;
+            player.vx = 0;
+            player.vy = 0;
+            bullets.length = 0;
+            enemies.forEach(e => e.alive = true);
+            gameCoins.forEach(c => c.collected = false);
+            updateHUD();
+        }
+        
+        function updateHUD() {
+            document.getElementById('score').textContent = score;
+            document.getElementById('lives').textContent = lives;
+            document.getElementById('coins').textContent = coins;
+        }
+        
+        function updateGame(deltaTime) {
+            if (gameState !== 'playing') return;
+            
+            // إدخال اللاعب
+            if (keys['ArrowLeft'] || keys['left']) {
+                player.vx = -4;
+                player.facing = -1;
+            } else if (keys['ArrowRight'] || keys['right']) {
+                player.vx = 4;
+                player.facing = 1;
+            } else {
+                player.vx = 0;
+            }
+            
+            if ((keys['Space'] || keys['jump']) && player.onGround) {
+                player.vy = -12;
+                player.onGround = false;
+            }
+            
+            // إطلاق الرصاص - Ctrl للرصاص
+            if (keys['ControlLeft'] || keys['ControlRight'] || keys['fire']) {
+                if (bullets.length < 3) {
+                    const bullet = {
+                        x: player.x + (player.facing === 1 ? player.width : 0),
+                        y: player.y + player.height / 2,
+                        vx: player.facing * 8,
+                        width: 8,
+                        height: 4
+                    };
+                    bullets.push(bullet);
+                }
+            }
+            
+            // فيزياء اللاعب
+            player.vy += 0.6; // الجاذبية
+            if (player.vy > 15) player.vy = 15;
+            
+            player.x += player.vx;
+            player.y += player.vy;
+            
+            // حدود الشاشة
+            if (player.x < 0) player.x = 0;
+            if (player.x > canvas.width - player.width) player.x = canvas.width - player.width;
+            if (player.y > canvas.height - player.height) {
+                player.y = canvas.height - player.height;
+                player.vy = 0;
+                player.onGround = true;
+            }
+            
+            // تصادم مع المنصات
+            player.onGround = false;
+            for (const platform of platforms) {
+                if (player.x < platform.x + platform.width &&
+                    player.x + player.width > platform.x &&
+                    player.y < platform.y + platform.height &&
+                    player.y + player.height > platform.y) {
+                    
+                    const overlapX = Math.min(
+                        player.x + player.width - platform.x,
+                        platform.x + platform.width - player.x
+                    );
+                    const overlapY = Math.min(
+                        player.y + player.height - platform.y,
+                        platform.y + platform.height - player.y
+                    );
+                    
+                    if (overlapX < overlapY) {
+                        if (player.x < platform.x) {
+                            player.x = platform.x - player.width;
+                        } else {
+                            player.x = platform.x + platform.width;
+                        }
+                        player.vx = 0;
+                    } else {
+                        if (player.y < platform.y) {
+                            player.y = platform.y - player.height;
+                            player.vy = 0;
+                        } else {
+                            player.y = platform.y + platform.height;
+                            player.vy = 0;
+                            player.onGround = true;
+                        }
+                    }
+                }
+            }
+            
+            // تحديث الرصاصات
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const bullet = bullets[i];
+                bullet.x += bullet.vx;
+                
+                // إزالة الرصاصات خارج الشاشة
+                if (bullet.x < 0 || bullet.x > canvas.width) {
+                    bullets.splice(i, 1);
+                    continue;
+                }
+                
+                // تصادم الرصاصات مع الأعداء
+                for (const enemy of enemies) {
+                    if (enemy.alive && 
+                        bullet.x < enemy.x + enemy.width &&
+                        bullet.x + bullet.width > enemy.x &&
+                        bullet.y < enemy.y + enemy.height &&
+                        bullet.y + bullet.height > enemy.y) {
+                        
+                        enemy.alive = false;
+                        bullets.splice(i, 1);
+                        score += 100;
+                        updateHUD();
+                        break;
+                    }
+                }
+            }
+            
+            // تحديث الأعداء
+            for (const enemy of enemies) {
+                if (!enemy.alive) continue;
+                
+                enemy.x += enemy.vx;
+                if (enemy.x < 200 || enemy.x > 400) {
+                    enemy.vx *= -1;
+                }
+            }
+            
+            // جمع العملات
+            for (const coin of gameCoins) {
+                if (!coin.collected &&
+                    player.x < coin.x + coin.width &&
+                    player.x + player.width > coin.x &&
+                    player.y < coin.y + coin.height &&
+                    player.y + player.height > coin.y) {
+                    
+                    coin.collected = true;
+                    coins++;
+                    score += 50;
+                    updateHUD();
+                }
+            }
+            
+            // فحص السقوط
+            if (player.y > canvas.height) {
+                lives--;
+                updateHUD();
+                if (lives <= 0) {
+                    gameState = 'over';
+                } else {
+                    player.x = 100;
+                    player.y = 300;
+                    player.vx = 0;
+                    player.vy = 0;
+                }
+            }
+        }
+        
+        function drawGame() {
+            // مسح الشاشة
+            ctx.fillStyle = '#87CEEB';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // رسم السحب
+            ctx.fillStyle = 'rgba(255,255,255,0.8)';
+            for (let i = 0; i < 5; i++) {
+                ctx.beginPath();
+                ctx.arc(100 + i * 150, 80 + (i % 2) * 20, 20, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            // رسم المنصات
+            ctx.fillStyle = '#8BC34A';
+            for (const platform of platforms) {
+                ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
+                ctx.strokeStyle = '#33691E';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(platform.x, platform.y, platform.width, platform.height);
+            }
+            
+            // رسم العملات
+            ctx.fillStyle = '#FFD700';
+            for (const coin of gameCoins) {
+                if (!coin.collected) {
+                    ctx.beginPath();
+                    ctx.arc(coin.x + coin.width/2, coin.y + coin.height/2, coin.width/2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#FFA000';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+            }
+            
+            // رسم الأعداء
+            ctx.fillStyle = '#F44336';
+            for (const enemy of enemies) {
+                if (enemy.alive) {
+                    ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
+                }
+            }
+            
+            // رسم الرصاصات
+            ctx.fillStyle = '#FF9800';
+            for (const bullet of bullets) {
+                ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height);
+            }
+            
+            // رسم اللاعب
+            ctx.fillStyle = '#2196F3';
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+            
+            // عيون اللاعب
+            ctx.fillStyle = '#FFFFFF';
+            if (player.facing === 1) {
+                ctx.fillRect(player.x + 8, player.y + 8, 4, 4);
+                ctx.fillRect(player.x + 18, player.y + 8, 4, 4);
+            } else {
+                ctx.fillRect(player.x + 8, player.y + 8, 4, 4);
+                ctx.fillRect(player.x + 18, player.y + 8, 4, 4);
+            }
+            
+            // رسائل اللعبة
+            if (gameState === 'menu') {
+                ctx.fillStyle = 'rgba(0,0,0,0.7)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = '48px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('اضغط Enter للبدء', canvas.width/2, canvas.height/2);
+            } else if (gameState === 'paused') {
+                ctx.fillStyle = 'rgba(0,0,0,0.7)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = '48px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('متوقف مؤقتاً', canvas.width/2, canvas.height/2);
+                ctx.font = '24px Arial';
+                ctx.fillText('اضغط P للاستمرار', canvas.width/2, canvas.height/2 + 40);
+            } else if (gameState === 'over') {
+                ctx.fillStyle = 'rgba(0,0,0,0.7)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#FF0000';
+                ctx.font = '48px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('انتهت اللعبة!', canvas.width/2, canvas.height/2);
+                ctx.font = '24px Arial';
+                ctx.fillText('اضغط R لإعادة المحاولة', canvas.width/2, canvas.height/2 + 40);
+            }
+        }
+        
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {});
+            } else {
+                document.exitFullscreen();
+            }
+        }
+        
+        // حلقة اللعبة
+        let lastTime = 0;
+        function gameLoop(currentTime) {
+            const deltaTime = currentTime - lastTime;
+            lastTime = currentTime;
+            
+            updateGame(deltaTime);
+            drawGame();
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // بدء اللعبة
+        updateHUD();
+        requestAnimationFrame(gameLoop);
+        
+        console.log('🎮 تم تحميل لعبة سوبر جاسم بنجاح!');
+        console.log('💡 اضغط Enter للبدء، P للإيقاف المؤقت، R لإعادة المحاولة');
+    </script>
+</body>
+</html>

@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no" />
+    <title>مغامرات جاسم - نسخة سوبر ماريو المحسنة</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0 }
+        body {
+            background: linear-gradient(135deg, #87CEEB 0%, #98FB98 100%);
+            font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            overflow-x: hidden;
+        }
+        
+        h1 { 
+            margin: 10px 0 8px; 
+            text-shadow: 3px 3px 0 #000; 
+            font-weight: 900;
+            font-size: 2.5em;
+            background: linear-gradient(45deg, #FFD700, #FFA500);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .sub { 
+            opacity: .9; 
+            margin-bottom: 8px;
+            font-size: 1.1em;
+            text-shadow: 2px 2px 0 #000;
+        }
+        
+        .game-wrap {
+            position: relative;
+            width: 95vw;
+            max-width: 1200px;
+            aspect-ratio: 16/9;
+            border: 6px solid #8B4513;
+            border-radius: 20px;
+            overflow: hidden;
+            background: #63adff;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, .4);
+            margin: 20px 0;
+        }
+        
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            image-rendering: pixelated;
+            background: linear-gradient(#76b8ff, #8cd1ff 55%, #63adff);
+        }
+        
+        .hud {
+            position: absolute;
+            inset: 15px 15px auto 15px;
+            display: flex;
+            gap: 15px;
+            justify-content: space-between;
+            pointer-events: none;
+            font-weight: 800;
+            text-shadow: 2px 2px 4px #000;
+            z-index: 10;
+        }
+        
+        .hud .left, .hud .right { display: flex; gap: 20px }
+        
+        .badge {
+            background: linear-gradient(135deg, rgba(0, 0, 0, .7), rgba(0, 0, 0, .5));
+            padding: 10px 15px;
+            border-radius: 15px;
+            font-size: 18px;
+            border: 2px solid rgba(255, 255, 255, .3);
+            backdrop-filter: blur(10px);
+        }
+        
+        .msg {
+            position: absolute;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 20px;
+            background: rgba(0, 0, 0, .6);
+            text-align: center;
+            font-size: 36px;
+            font-weight: 900;
+            text-shadow: 3px 3px 0 #000;
+            padding: 30px;
+            z-index: 20;
+        }
+        
+        .msg small { font-size: 20px; opacity: .9 }
+        
+        /* أزرار التحكم المحسنة للهاتف */
+        .mobile-controls {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 25px;
+            z-index: 100;
+            gap: 15px;
+        }
+        
+        .control-group {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        .btn {
+            width: 70px;
+            height: 70px;
+            border: none;
+            border-radius: 50%;
+            font-size: 24px;
+            font-weight: 800;
+            box-shadow: 0 6px 0 rgba(0, 0, 0, .3);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+        
+        .btn:active {
+            transform: translateY(3px);
+            box-shadow: 0 3px 0 rgba(0, 0, 0, .3);
+        }
+        
+        .btn.left { 
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: #fff;
+            border: 3px solid #2E7D32;
+        }
+        
+        .btn.right { 
+            background: linear-gradient(135deg, #2196F3, #1976D2);
+            color: #fff;
+            border: 3px solid #0D47A1;
+        }
+        
+        .btn.jump { 
+            background: linear-gradient(135deg, #FF5722, #E64A19);
+            color: #fff;
+            border: 3px solid #BF360C;
+        }
+        
+        .btn.fire { 
+            background: linear-gradient(135deg, #FF9800, #F57C00);
+            color: #fff;
+            border: 3px solid #E65100;
+        }
+        
+        .btn.down { 
+            background: linear-gradient(135deg, #9C27B0, #7B1FA2);
+            color: #fff;
+            border: 3px solid #4A148C;
+        }
+        
+        .btn.up { 
+            background: linear-gradient(135deg, #00BCD4, #0097A7);
+            color: #fff;
+            border: 3px solid #006064;
+        }
+        
+        /* أزرار إضافية للهاتف */
+        .btn.special {
+            background: linear-gradient(135deg, #FFC107, #FFA000);
+            color: #000;
+            border: 3px solid #F57F17;
+            width: 60px;
+            height: 60px;
+            font-size: 20px;
+        }
+        
+        @media(min-width:900px) { 
+            .mobile-controls { display: none } 
+        }
+        
+        .sharebar { 
+            margin: 15px 0 0; 
+            display: flex; 
+            gap: 15px; 
+            align-items: center; 
+        }
+        
+        .sharebtn {
+            border: none;
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            color: #8B4513;
+            font-weight: 800;
+            padding: 12px 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 0 rgba(0, 0, 0, .3);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 16px;
+        }
+        
+        .sharebtn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 0 rgba(0, 0, 0, .3);
+        }
+        
+        .overlay {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, .7);
+            z-index: 1000;
+            padding: 20px;
+        }
+        
+        .card {
+            background: linear-gradient(135deg, #fff, #f0f0f0);
+            color: #222;
+            max-width: 95vw;
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, .4);
+            border: 3px solid #ddd;
+        }
+        
+        .card h3 { 
+            margin-bottom: 15px;
+            color: #8B4513;
+            font-size: 24px;
+        }
+        
+        .row { 
+            display: flex; 
+            gap: 15px; 
+            align-items: center; 
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+        
+        .urlbox { 
+            width: 350px; 
+            max-width: 80vw; 
+            padding: 10px 15px; 
+            border: 2px solid #ccc; 
+            border-radius: 10px;
+            font-size: 16px;
+        }
+        
+        .qr { 
+            width: 280px; 
+            height: 280px; 
+            border: 3px solid #ddd;
+            border-radius: 15px;
+        }
+        
+        .close { 
+            margin-top: 15px; 
+            background: linear-gradient(135deg, #666, #555);
+            color: #fff;
+            border: 2px solid #444;
+        }
+        
+        .perf-info {
+            position: fixed;
+            top: 15px;
+            right: 15px;
+            background: linear-gradient(135deg, rgba(0, 0, 0, .8), rgba(0, 0, 0, .6));
+            color: white;
+            padding: 15px;
+            border-radius: 15px;
+            font-family: monospace;
+            font-size: 14px;
+            border: 2px solid rgba(255, 255, 255, .2);
+            backdrop-filter: blur(15px);
+            z-index: 50;
+        }
+        
+        .perf-info h4 {
+            margin: 0 0 10px 0;
+            color: #FFD700;
+            font-size: 16px;
+        }
+        
+        .perf-info .stat {
+            margin: 5px 0;
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, .2);
+        }
+        
+        .perf-info .stat:last-child {
+            border-bottom: none;
+        }
+        
+        /* تحسينات للشاشات الصغيرة */
+        @media(max-width: 768px) {
+            h1 { font-size: 2em; }
+            .game-wrap { width: 98vw; margin: 10px 0; }
+            .hud { inset: 10px 10px auto 10px; }
+            .badge { padding: 8px 12px; font-size: 16px; }
+            .btn { width: 65px; height: 65px; font-size: 22px; }
+            .mobile-controls { bottom: 15px; padding: 0 20px; }
+        }
+        
+        /* تأثيرات بصرية إضافية */
+        .game-wrap::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, #FFD700, #FFA500, #FFD700);
+            border-radius: 22px;
+            z-index: -1;
+            animation: borderGlow 3s ease-in-out infinite alternate;
+        }
+        
+        @keyframes borderGlow {
+            0% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        
+        /* تحسين أزرار المشاركة */
+        .sharebar {
+            background: linear-gradient(135deg, rgba(255, 255, 255, .1), rgba(255, 255, 255, .05));
+            padding: 15px 25px;
+            border-radius: 20px;
+            border: 2px solid rgba(255, 255, 255, .2);
+            backdrop-filter: blur(10px);
+        }
+    </style>
+</head>
+<body>
+    <h1>🍄 مغامرات جاسم 🍄</h1>
+    <div class="sub">نسخة سوبر ماريو المحسنة - خلفيات وأعداء ورسومات مختلفة لكل مستوى</div>
+
+    <div class="sharebar">
+        <button id="shareOpen" class="sharebtn">🔗 مشاركة / QR</button>
+        <button id="fullscreenBtn" class="sharebtn">⛶ ملء الشاشة</button>
+        <button id="qualityBtn" class="sharebtn">🎨 جودة الرسومات</button>
+    </div>
+
+    <div class="game-wrap">
+        <canvas id="game"></canvas>
+        <div class="hud">
+            <div class="left">
+                <div class="badge">النقاط: <span id="score">0</span></div>
+                <div class="badge">الأرواح: <span id="lives">3</span></div>
+                <div class="badge">العملات: <span id="coins">0</span></div>
+            </div>
+            <div class="right">
+                <div class="badge">المستوى: <span id="level">1</span></div>
+                <div class="badge">الوقت: <span id="time">300</span></div>
+            </div>
+        </div>
+        <div id="msg" class="msg"></div>
+    </div>
+
+    <!-- أزرار التحكم المحسنة للهاتف -->
+    <div class="mobile-controls">
+        <div class="control-group">
+            <button class="btn left" id="left">◀</button>
+            <button class="btn down" id="down">▼</button>
+            <button class="btn right" id="right">▶</button>
+        </div>
+        <div class="control-group">
+            <button class="btn up" id="up">▲</button>
+            <button class="btn jump" id="jump">⤒</button>
+            <button class="btn fire" id="fire">✶</button>
+        </div>
+        <div class="control-group">
+            <button class="btn special" id="pause">⏸</button>
+            <button class="btn special" id="menu">☰</button>
+        </div>
+    </div>
+
+    <!-- نافذة المشاركة -->
+    <div id="overlay" class="overlay">
+        <div class="card">
+            <h3>مشاركة اللعبة</h3>
+            <div class="row">
+                <input id="pageUrl" class="urlbox" readonly />
+                <button id="copyLink" class="sharebtn">نسخ الرابط</button>
+                <button id="nativeShare" class="sharebtn">مشاركة</button>
+            </div>
+            <div class="row">
+                <img id="qrImg" class="qr" alt="QR" />
+                <div style="max-width:350px; font-size:16px; line-height:1.6">
+                    <strong>ملاحظات:</strong><br>
+                    • يعمل QR عند استضافة الملف على الإنترنت<br>
+                    • يمكن مشاركة اللعبة مع الأصدقاء<br>
+                    • يعمل على جميع الأجهزة
+                </div>
+            </div>
+            <button id="closeOverlay" class="sharebtn close">إغلاق</button>
+        </div>
+    </div>
+
+    <!-- معلومات الأداء -->
+    <div class="perf-info" id="perfInfo">
+        <h4>📊 معلومات الأداء</h4>
+        <div class="stat">FPS: <span id="fps">60</span></div>
+        <div class="stat">الكائنات: <span id="objects">0</span></div>
+        <div class="stat">المرئية: <span id="visible">0</span></div>
+        <div class="stat">التصادم: <span id="collisions">0</span></div>
+        <div class="stat">الذاكرة: <span id="memory">0</span>KB</div>
+    </div>
+
+    <!-- تحميل جميع الملفات المحسنة -->
+    <script src="js/super-mario-spatial-hash.js"></script>
+    <script src="js/super-mario-object-pool.js"></script>
+    <script src="js/super-mario-sound-manager.js"></script>
+    <script src="js/super-mario-performance-monitor.js"></script>
+    <script src="js/super-mario-levels.js"></script>
+    <script src="js/super-mario-renderer.js"></script>
+    <script src="js/super-mario-main.js"></script>
+</body>
+</html>
